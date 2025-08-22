@@ -14,27 +14,18 @@ import java.io.IOException;
 public class SecurityHeadersFilter extends OncePerRequestFilter {
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, 
                                     FilterChain filterChain) throws ServletException, IOException {
         
         // Content Security Policy
         response.setHeader("Content-Security-Policy", 
-            "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline'; " +
-            "style-src 'self' 'unsafe-inline'; " +
-            "img-src 'self' data: https:; " +
-            "connect-src 'self' https://*.replit.com https://*.repl.co; " +
-            "font-src 'self' data:; " +
-            "object-src 'none'; " +
-            "media-src 'self'; " +
-            "frame-ancestors 'none';");
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'");
         
-        // Additional Security Headers
+        // Security headers
         response.setHeader("X-Content-Type-Options", "nosniff");
         response.setHeader("X-Frame-Options", "DENY");
         response.setHeader("X-XSS-Protection", "1; mode=block");
         response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-        response.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
         
         filterChain.doFilter(request, response);
     }
