@@ -12,3 +12,4 @@
 /home/runner/workspace/src/main/java/com/replit/HealthController.java
 /home/runner/workspace/src/main/java/com/replit/controller/TestController.java
 /home/runner/workspace/src/main/java/com/replit/dto/AuthRequest.java
+/home/runner/workspace/src/main/java/com/replit/security/SecurityHeadersFilter.java
