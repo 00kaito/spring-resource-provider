@@ -93,7 +93,13 @@ public class JwtService {
     }
 
     private Key getSignInKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(secret);
-        return Keys.hmacShaKeyFor(keyBytes);
+        try {
+            byte[] keyBytes = Decoders.BASE64.decode(secret);
+            return Keys.hmacShaKeyFor(keyBytes);
+        } catch (Exception e) {
+            // Fallback: generate a secure key if the provided secret is invalid
+            logger.warn("Invalid JWT secret, generating secure key");
+            return Keys.secretKeyFor(SignatureAlgorithm.HS256);
+        }
     }
 }
