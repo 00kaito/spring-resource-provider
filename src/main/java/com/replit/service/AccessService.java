@@ -10,7 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -28,12 +28,10 @@ public class AccessService {
     @Value("${main-app.retry-attempts:3}")
     private int maxRetryAttempts;
 
-    private final RestTemplate restTemplate;
-    private final AtomicInteger failureCount = new AtomicInteger(0);
-    private static final int CIRCUIT_BREAKER_THRESHOLD = 5;
-
     private RestTemplate restTemplate;
     private final RestTemplateBuilder restTemplateBuilder;
+    private final AtomicInteger failureCount = new AtomicInteger(0);
+    private static final int CIRCUIT_BREAKER_THRESHOLD = 5;
 
     public AccessService(RestTemplateBuilder builder) {
         this.restTemplateBuilder = builder;
