@@ -1,191 +1,184 @@
+
 # Secure Audio Microservice
 
-Spring Boot microservice that provides secure access to audio files using JWT authentication.
+Spring Boot mikroservice zapewniający bezpieczny dostęp do plików audio za pomocą uwierzytelniania JWT.
 
-## Uruchamianie aplikacji
+## Architektura Aplikacji
 
-1. Kompilacja i uruchomienie:
+### Wzorzec Architektury
+- **Spring MVC** - tradycyjna architektura web aplikacji Spring Boot
+- **JWT Authentication** - bezstanowe uwierzytelnianie tokenami JWT
+- **RESTful API** - endpoints zgodne z zasadami REST
+- **In-Memory Authentication** - proste uwierzytelnianie dla testów
+
+### Struktura Pakietów
+
+```
+com.replit/
+├── Application.java                 # Główna klasa aplikacji Spring Boot
+├── HealthController.java           # Endpointy health check
+├── config/
+│   └── AppConfig.java              # Konfiguracja aplikacji
+├── controller/                     # Warstwa kontrolerów REST
+│   ├── AuthController.java         # Uwierzytelnianie (login)
+│   ├── TestController.java         # Endpoint testowy JWT
+│   └── AudioController.java        # Streaming plików audio
+├── dto/                            # Data Transfer Objects
+│   ├── AuthRequest.java            # Payload do logowania
+│   └── AuthResponse.java           # Odpowiedź z tokenem JWT
+├── security/                       # Konfiguracja bezpieczeństwa
+│   ├── SecurityConfig.java         # Konfiguracja Spring Security
+│   ├── JwtService.java            # Serwis generowania/walidacji JWT
+│   └── JwtAuthenticationFilter.java # Filtr uwierzytelniania
+├── service/
+│   └── AccessService.java          # Logika kontroli dostępu do zasobów
+└── exception/
+    └── GlobalExceptionHandler.java # Globalna obsługa błędów
+```
+
+## Opis Klas
+
+### Controllers
+
+**AuthController** (`/api/auth`)
+- `POST /login` - uwierzytelnianie użytkownika, zwraca JWT token
+
+**TestController** (`/api`)  
+- `GET /test` - chroniony endpoint testowy wymagający JWT
+
+**AudioController** (`/api`)
+- `GET /audio/stream/{resourceId}` - streaming plików audio z kontrolą dostępu
+
+**HealthController** (`/`)
+- `GET /health` - status aplikacji  
+- `GET /` - podstawowy endpoint aplikacji
+
+### Security Layer
+
+**SecurityConfig**
+- Konfiguracja Spring Security
+- Definicje chronionych endpointów
+- Konfiguracja uwierzytelniania in-memory (user/password)
+
+**JwtService**
+- Generowanie tokenów JWT
+- Walidacja tokenów
+- Extraktowanie danych z tokenów
+- Klucz JWT: `myVerySecureSecretKeyThatIsLongEnoughForHMACHS256Algorithm`
+- Czas wygaśnięcia: 24 godziny
+
+**JwtAuthenticationFilter**
+- Przechwytuje requesty HTTP
+- Waliduje tokeny JWT w headerze Authorization
+- Ustawia kontekst bezpieczeństwa
+
+### Services
+
+**AccessService**
+- Kontrola dostępu do zasobów audio
+- Walidacja uprawnień użytkowników do konkretnych plików
+
+### Exception Handling
+
+**GlobalExceptionHandler**
+- Centralizowana obsługa błędów
+- Obsługa błędów uwierzytelniania (401)
+- Obsługa błędów walidacji (400)  
+- Obsługa błędów bezpieczeństwa (403)
+
+## Konfiguracja
+
+### application.properties
+```properties
+management.server.port=8080
+jwt.secret=myVerySecureSecretKeyThatIsLongEnoughForHMACHS256Algorithm
+jwt.expiration=86400000
+```
+
+### Dane Testowe
+- **Username**: `user`
+- **Password**: `password`
+- **Rola**: `USER`
+
+## API Endpoints
+
+### Publiczne (nie wymagają uwierzytelniania)
+- `POST /api/auth/login` - logowanie
+- `GET /health` - status aplikacji
+- `GET /` - główna strona
+
+### Chronione (wymagają JWT token)
+- `GET /api/test` - endpoint testowy
+- `GET /api/audio/stream/{resourceId}` - streaming audio
+
+## Uruchamianie Aplikacji
+
+**Maven:**
 ```bash
 mvn clean compile
 mvn spring-boot:run
 ```
 
-2. Alternatywnie (jeśli są problemy z Maven):
-```bash
-mvn clean package
-java -jar target/spring-boot-1.0.0-SNAPSHOT.jar
-```
+**Kliknij przycisk "Run"** - uruchomi workflow "Start Spring Boot"
 
-## Testowanie JWT - Instrukcje krok po kroku
+## Testowanie JWT
 
-### 1. Pobieranie tokena JWT
+### 1. Pobieranie tokena
 
-**Metoda 1: Używając curl**
 ```bash
 curl -X POST http://0.0.0.0:8080/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username": "user", "password": "password"}'
 ```
 
-**Metoda 2: Używając Postman/Insomnia**
-- URL: `POST http://0.0.0.0:8080/api/auth/login`
-- Headers: `Content-Type: application/json`
-- Body (JSON):
-```json
-{
-  "username": "user",
-  "password": "password"
-}
-```
-
 **Odpowiedź:**
 ```json
 {
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyIiwiaWF0IjoxNzI0MzM5MTAwLCJleHAiOjE3MjQzNDI3MDB9.signature",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "type": "Bearer"
 }
 ```
 
-### 2. Weryfikacja tokena - Testowanie chronionych endpointów
+### 2. Testowanie chronionego endpointu
 
-**Test 1: Endpoint testowy**
 ```bash
-# Zapisz token do zmiennej
-export TOKEN="twój-jwt-token-tutaj"
+# Zapisz token
+export TOKEN="twój-jwt-token"
 
-# Testuj chroniony endpoint
+# Test endpoint
 curl -X GET http://0.0.0.0:8080/api/test \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-**Test 2: Endpoint audio**
+**Oczekiwana odpowiedź:**
+```
+Hello user! JWT authentication works correctly.
+```
+
+### 3. Test endpointu audio
+
 ```bash
 curl -X GET http://0.0.0.0:8080/api/audio/stream/sample123 \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-### 3. Testowanie błędnych scenariuszy
-
-**Brak tokena:**
-```bash
-curl -X GET http://0.0.0.0:8080/api/test
-# Oczekiwana odpowiedź: 401 Unauthorized
-```
-
-**Nieprawidłowy token:**
-```bash
-curl -X GET http://0.0.0.0:8080/api/test \
-  -H "Authorization: Bearer invalid-token"
-# Oczekiwana odpowiedź: 401 Unauthorized
-```
-
-**Wygasły token:**
-```bash
-curl -X GET http://0.0.0.0:8080/api/test \
-  -H "Authorization: Bearer expired-token"
-# Oczekiwana odpowiedź: 401 Unauthorized
-```
-
-### 4. Sprawdzanie zawartości tokena (deweloperskie)
-
-Możesz zdekodować token JWT online na https://jwt.io lub używając narzędzi deweloperskich:
-
-**Przykład struktury tokena:**
-```json
-{
-  "header": {
-    "alg": "HS256",
-    "typ": "JWT"
-  },
-  "payload": {
-    "sub": "user",
-    "iat": 1724339100,
-    "exp": 1724342700
-  }
-}
-```
-
-### 5. Testowanie z różnymi narzędziami
-
-**HTTPie:**
-```bash
-# Logowanie
-http POST 0.0.0.0:8080/api/auth/login username=user password=password
-
-# Test chronionego endpointu
-http GET 0.0.0.0:8080/api/test Authorization:"Bearer YOUR_TOKEN"
-```
-
-**JavaScript (Fetch API):**
-```javascript
-// Logowanie
-fetch('http://0.0.0.0:8080/api/auth/login', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ username: 'user', password: 'password' })
-})
-.then(response => response.json())
-.then(data => {
-  const token = data.token;
-  
-  // Test chronionego endpointu
-  return fetch('http://0.0.0.0:8080/api/test', {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-})
-.then(response => response.text())
-.then(data => console.log(data));
-```
-
-## Konfiguracja
-
-### Dane testowe
-- Username: `user`
-- Password: `password`
-
-### Zmienne środowiskowe
-```bash
-# Ustaw własny sekret JWT (opcjonalne)
-export JWT_SECRET=your-very-secure-secret-key-here
-
-# Czas wygaśnięcia tokena w milisekundach (domyślnie 1 godzina)
-export JWT_EXPIRATION=3600000
-```
-
 ## Troubleshooting
 
-### 1. Problemy z kompilacją
+### Błąd kompilacji
 ```bash
-# Wyczyść i przebuduj projekt
 mvn clean compile
 ```
 
-### 2. Problemy z uruchomieniem
-```bash
-# Sprawdź czy port 8080 jest wolny
-netstat -tlnp | grep 8080
+### Aplikacja nie startuje
+- Sprawdź czy port 8080 jest wolny
+- Sprawdź logi w konsoli
 
-# Uruchom z innym portem jeśli potrzeba
-java -jar target/spring-boot-1.0.0-SNAPSHOT.jar --server.port=8081
-```
+### Token nie działa
+- Sprawdź czy token nie wygasł (24h)
+- Upewnij się że używasz "Bearer " przed tokenem
+- Sprawdź format JSON w request body
 
-### 3. Problemy z tokenem
-- Sprawdź czy token nie wygasł (domyślnie 1 godzina)
-- Upewnij się, że używasz prefiksu "Bearer " przed tokenem
-- Sprawdź logi aplikacji w konsoli
-
-### 4. Testowanie lokalne vs. Replit
-- Na Replit używaj: `https://twoja-nazwa-repla.replit.app`
-- Lokalnie: `http://0.0.0.0:8080` lub `http://localhost:8080`
-
-## Troubleshooter
-
-1. env
-
-   os environment not effect, so javac/java command in compile/run execute error.
-
-   you can use "mvn clean package" for compile, and "java -jar target/*.jar" for run.
-
-2. unfree package
-
-   mark allowUnfree as true not work in file '.config/nixpkgs/config.nix', though linked to '~/.config/nixpkgs/config.nix'
+### Deployment na Replit
+Aplikacja jest skonfigurowana do deployment na Replit:
+- Build command: `mvn clean package -Dmaven.test.skip=true`
+- Run command: `java -jar target/*.jar`
