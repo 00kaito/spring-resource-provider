@@ -1,0 +1,30 @@
+[INFO] -------------------------------------------------------------
+[INFO] -------------------------------------------------------------
+[ERROR] COMPILATION ERROR : 
+[INFO] -------------------------------------------------------------
+[ERROR] /home/runner/workspace/src/main/java/com/replit/service/AccessService.java:[13,24] package javax.annotation does not exist
+[ERROR] /home/runner/workspace/src/main/java/com/replit/service/AccessService.java:[35,26] variable restTemplate is already defined in class com.replit.service.AccessService
+[ERROR] /home/runner/workspace/src/main/java/com/replit/service/AccessService.java:[42,6] cannot find symbol
+  symbol:   class PostConstruct
+  location: class com.replit.service.AccessService
+[INFO] 3 errors 
+[INFO] -------------------------------------------------------------
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  2.044 s
+[INFO] Finished at: 2025-08-22T17:16:51Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.1:compile (default-compile) on project spring-boot: Compilation failure: Compilation failure: 
+[ERROR] /home/runner/workspace/src/main/java/com/replit/service/AccessService.java:[13,24] package javax.annotation does not exist
+[ERROR] /home/runner/workspace/src/main/java/com/replit/service/AccessService.java:[35,26] variable restTemplate is already defined in class com.replit.service.AccessService
+[ERROR] /home/runner/workspace/src/main/java/com/replit/service/AccessService.java:[42,6] cannot find symbol
+[ERROR]   symbol:   class PostConstruct
+[ERROR]   location: class com.replit.service.AccessService
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
