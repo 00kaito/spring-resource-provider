@@ -62,9 +62,27 @@ public class JwtService {
 
     public boolean isTokenValid(String token) {
         try {
-            return !isTokenExpired(token) && isIssuerValid(token) && isAudienceValid(token);
+            logger.info("VALIDATION_START: Starting token validation");
+            
+            // Check expiration
+            boolean notExpired = !isTokenExpired(token);
+            logger.info("VALIDATION_EXPIRATION: Token expired = {}, notExpired = {}", isTokenExpired(token), notExpired);
+            
+            // Check issuer
+            boolean issuerValid = isIssuerValid(token);
+            logger.info("VALIDATION_ISSUER: Issuer valid = {}", issuerValid);
+            
+            // Check audience
+            boolean audienceValid = isAudienceValid(token);
+            logger.info("VALIDATION_AUDIENCE: Audience valid = {}", audienceValid);
+            
+            boolean finalResult = notExpired && issuerValid && audienceValid;
+            logger.info("VALIDATION_FINAL: notExpired={}, issuerValid={}, audienceValid={}, RESULT={}", 
+                notExpired, issuerValid, audienceValid, finalResult);
+            
+            return finalResult;
         } catch (Exception e) {
-            logger.error("Token validation failed: {}", e.getMessage());
+            logger.error("VALIDATION_ERROR: Token validation failed with exception: {}", e.getMessage(), e);
             return false;
         }
     }
@@ -72,9 +90,11 @@ public class JwtService {
     public boolean isIssuerValid(String token) {
         try {
             String issuer = extractClaim(token, Claims::getIssuer);
+            logger.info("ISSUER_CHECK: Expected='{}', Found='{}', Match={}", 
+                expectedIssuer, issuer, expectedIssuer.equals(issuer));
             return expectedIssuer.equals(issuer);
         } catch (Exception e) {
-            logger.warn("Invalid issuer in token: {}", e.getMessage());
+            logger.warn("ISSUER_ERROR: Invalid issuer in token: {}", e.getMessage());
             return false;
         }
     }
@@ -82,9 +102,11 @@ public class JwtService {
     public boolean isAudienceValid(String token) {
         try {
             String audience = extractClaim(token, Claims::getAudience);
+            logger.info("AUDIENCE_CHECK: Expected='{}', Found='{}', Match={}", 
+                expectedAudience, audience, expectedAudience.equals(audience));
             return expectedAudience.equals(audience);
         } catch (Exception e) {
-            logger.warn("Invalid audience in token: {}", e.getMessage());
+            logger.warn("AUDIENCE_ERROR: Invalid audience in token: {}", e.getMessage());
             return false;
         }
     }
@@ -107,12 +129,21 @@ public class JwtService {
 
     private Claims extractAllClaims(String token) {
         try {
-            return Jwts
+            Claims claims = Jwts
                     .parserBuilder()
                     .setSigningKey(getSignInKey())
                     .build()
                     .parseClaimsJws(token)
                     .getBody();
+            
+            logger.info("TOKEN_CLAIMS: subject='{}', issuer='{}', audience='{}', expiration='{}', issuedAt='{}'", 
+                claims.getSubject(), 
+                claims.getIssuer(), 
+                claims.getAudience(), 
+                claims.getExpiration(), 
+                claims.getIssuedAt());
+            
+            return claims;
         } catch (MalformedJwtException e) {
             logger.error("Invalid JWT token: {}", e.getMessage());
             throw new RuntimeException("Invalid JWT token");
