@@ -1,6 +1,6 @@
 # compile/run cannot use the environment variables defined by this file
-compile = "javac -encoding UTF-8 -classpath $CLASSPATH -d target/classes $(find src/main/java -type f -name '*.java')"
-run = "cp -r src/main/resources/* target/classes/ && java -Dfile.encoding=UTF-8 -classpath target/classes:$CLASSPATH:target/dependency/* com.replit.Application"
+compile = "mvn org.apache.maven.plugins:maven-dependency-plugin:3.5.0:copy-dependencies && javac -encoding UTF-8 -classpath target/dependency/*:$CLASSPATH:. -d target/classes $(find src/main/java -type f -name '*.java')"
+run = "cp -r src/main/resources/* target/classes/ && java -Dfile.encoding=UTF-8 -classpath target/classes:$CLASSPATH:target/dependency/*:. com.replit.Application"
 # onBoot not function well
 onBoot = "kill 1"
 entrypoint = "README.md"
@@ -37,7 +37,7 @@ channel = "stable-22_11"
 support = true
 
 [debugger.compile]
-command = "javac -verbose -encoding UTF-8 -classpath .:/run_dir/junit-4.12.jar:$CLASSPATH:target/dependency/* -g -d target/classes $(find src/main/java -type f -name '*.java')"
+command = "javac -verbose -encoding UTF-8 -classpath target/dependency/*:$CLASSPATH:. -g -d target/classes $(find src/main/java -type f -name '*.java')"
 
 [debugger.interactive]
 transport = "localhost:0"
@@ -68,12 +68,15 @@ command = "launch"
 type = "request"
 
 [debugger.interactive.launchMessage.arguments]
-classPaths = ["."] # parameter error? got error even if use actual value: (${CLASSPATH//:/})
+classPaths = ["target/dependency/*","target/classes","."] # parameter error? got error even if use actual value: (${CLASSPATH//:/})
 mainClass = "com.replit.Application"
 
 [[ports]]
+localPort = 80
+externalPort = 3000
+
+[[ports]]
 localPort = 8080
-# Currently only ports 5900, 8099, 9000 are allowed as the externalPort, https://<repl>.<username>.repl.co:<externalPort>
 externalPort = 80
 
 [deployment]
