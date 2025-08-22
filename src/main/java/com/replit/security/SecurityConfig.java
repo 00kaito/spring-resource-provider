@@ -38,6 +38,7 @@ public class SecurityConfig {
                         .requestMatchers("/health").permitAll()
                         .requestMatchers("/").permitAll()
                         .requestMatchers("/api/audio/**").authenticated()
+                        .requestMatchers("/api/admin/**").authenticated()
                         .requestMatchers("/api/test").authenticated()
                         .anyRequest().authenticated()
                 )

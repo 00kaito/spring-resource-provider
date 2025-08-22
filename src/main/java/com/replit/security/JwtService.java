@@ -23,6 +23,12 @@ public class JwtService {
 
     @Value("${jwt.expiration}")
     private Long jwtExpiration;
+    
+    @Value("${jwt.issuer}")
+    private String expectedIssuer;
+    
+    @Value("${jwt.audience}")
+    private String expectedAudience;
 
     public String extractUserId(String token) {
         return extractClaim(token, Claims::getSubject);
@@ -54,11 +60,39 @@ public class JwtService {
 
     public boolean isTokenValid(String token) {
         try {
-            return !isTokenExpired(token);
+            return !isTokenExpired(token) && isIssuerValid(token) && isAudienceValid(token);
         } catch (Exception e) {
             logger.error("Token validation failed: {}", e.getMessage());
             return false;
         }
+    }
+    
+    public boolean isIssuerValid(String token) {
+        try {
+            String issuer = extractClaim(token, Claims::getIssuer);
+            return expectedIssuer.equals(issuer);
+        } catch (Exception e) {
+            logger.warn("Invalid issuer in token: {}", e.getMessage());
+            return false;
+        }
+    }
+    
+    public boolean isAudienceValid(String token) {
+        try {
+            String audience = extractClaim(token, Claims::getAudience);
+            return expectedAudience.equals(audience);
+        } catch (Exception e) {
+            logger.warn("Invalid audience in token: {}", e.getMessage());
+            return false;
+        }
+    }
+    
+    public String extractRole(String token) {
+        return extractClaim(token, claims -> claims.get("role", String.class));
+    }
+    
+    public String extractPermissions(String token) {
+        return extractClaim(token, claims -> claims.get("permissions", String.class));
     }
 
     private boolean isTokenExpired(String token) {
