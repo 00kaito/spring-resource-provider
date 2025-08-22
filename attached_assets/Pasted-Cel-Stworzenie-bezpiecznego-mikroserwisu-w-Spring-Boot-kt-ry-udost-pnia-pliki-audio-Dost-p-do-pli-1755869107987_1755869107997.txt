@@ -1,0 +1,75 @@
+Cel: Stworzenie bezpiecznego mikroserwisu w Spring Boot, który udostępnia pliki audio. Dostęp do plików jest autoryzowany na podstawie tokena JWT oraz uprawnień użytkownika, sprawdzanych w zewnętrznym serwisie (Aplikacji Głównej).
+
+1. Konfiguracja i Zależności
+Zależności w pom.xml: Dodaj spring-boot-starter-security, jjwt (dla JWT) oraz spring-boot-starter-web.
+
+Klasa konfiguracji Spring Security: Utwórz klasę z adnotacją @Configuration. Skonfiguruj SecurityFilterChain, aby:
+
+Używała SessionCreationPolicy.STATELESS (bezstanowe sesje).
+
+Zabezpieczała wszystkie ścieżki (/api/audio/**) z wyjątkiem endpointu uwierzytelniającego (/api/auth).
+
+Dodawała niestandardowy filtr do uwierzytelniania JWT przed standardowym filtrem autoryzacji.
+
+2. Generowanie i Weryfikacja Tokena JWT
+Klasa JwtService: Stwórz serwis do obsługi tokenów JWT.
+
+Implementuj metody do generowania tokenów, umieszczając w nich unikalne ID użytkownika (userId).
+
+Implementuj metody do weryfikacji tokenów: sprawdzaj sygnaturę i datę ważności.
+
+Przechowywanie klucza: Klucz do podpisywania tokenów pobieraj ze zmiennej środowiskowej (JWT_SECRET) lub z pliku application.properties. Używaj wartości domyślnej tylko w celach deweloperskich. Przykładowa konfiguracja:
+
+Properties
+
+jwt.secret=${JWT_SECRET:fallbackDefaultSecretOnlyForDev}
+3. Endpoint Uwierzytelniający (/api/auth)
+Stwórz kontroler, który przyjmie dane logowania (username, password).
+
+Użyj AuthenticationManager do uwierzytelnienia użytkownika.
+
+Jeśli uwierzytelnienie się powiedzie, wygeneruj token JWT za pomocą JwtService i zwróć go w odpowiedzi.
+
+Dane do testów: W README.md umieść przykładowe dane logowania do testów (np. user, password).
+
+4. Filtr Weryfikujący JWT
+Stwórz filtr JwtAuthenticationFilter rozszerzający OncePerRequestFilter. Będzie on uruchamiany przy każdym żądaniu.
+
+Logika filtru:
+
+Sprawdź nagłówek Authorization. Jeśli jest token, wyodrębnij go.
+
+Zweryfikuj token za pomocą JwtService. Jeśli token jest ważny, wyodrębnij z niego userId.
+
+Na podstawie userId utwórz obiekt Authentication i ustaw go w SecurityContextHolder.
+
+5. Endpointy do Autoryzacji i Dostęp do Zasobów
+Endpoint Testowy (/api/test): Stwórz endpoint, który wymaga tylko ważnego tokena. Zwraca on komunikat sukcesu, jeśli uwierzytelnienie przebiegło pomyślnie.
+
+Endpoint do Prawdziwego Zasobu (/api/audio/stream/{resourceId}):
+
+Ten endpoint musi być zabezpieczony. Dostęp do niego wymaga zarówno ważnego tokena JWT, jak i uprawnień do konkretnego pliku.
+
+W ciele metody kontrolera, wstrzyknij obiekt Authentication z SecurityContextHolder.
+
+Wyciągnij userId z obiektu Authentication i resourceId ze ścieżki żądania.
+
+Komunikacja z Aplikacją Główną: Użyj klienta HTTP, aby wysłać żądanie do zewnętrznego API, na przykład:
+
+GET https://main-app.com/api/internal/check-access?userId=...&resourceId=...
+Ten endpoint w Aplikacji Głównej powinien zwrócić true lub false.
+
+Weryfikacja:
+
+Jeśli odpowiedź jest true, zwróć strumień audio z pliku.
+
+Jeśli odpowiedź jest false, zwróć 403 Forbidden.
+
+6. Obsługa błędów i Logowanie
+Globalny handler błędów (@ControllerAdvice): Zaimplementuj go, aby obsłużyć różne wyjątki:
+
+401 Unauthorized: W przypadku błędnych danych logowania lub nieważnego tokena.
+
+403 Forbidden: W przypadku braku uprawnień dostępu do zasobu.
+
+Logowanie: Użyj SLF4J, aby logować krytyczne zdarzenia, takie jak próby nieudanego uwierzytelnienia, błędy weryfikacji tokenów i nieautoryzowany dostęp do zasobów.
