@@ -30,14 +30,6 @@ public class AudioController {
         this.accessService = accessService;
     }
 
-    @GetMapping("/test")
-    public ResponseEntity<String> test() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String userId = authentication.getName();
-        logger.info("Test endpoint accessed by user: {}", userId);
-        return ResponseEntity.ok("Authentication successful for user: " + userId);
-    }
-
     @GetMapping("/audio/stream/{resourceId}")
     public ResponseEntity<Resource> streamAudio(@PathVariable String resourceId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
