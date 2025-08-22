@@ -44,18 +44,22 @@ public class AudioController {
         String userId = authentication.getName();
         String clientIp = getClientIpAddress(request);
 
-        logger.debug("Audio stream request: user={}, resource={}, ip={}", userId, resourceId, clientIp);
+        logger.info("AUDIO_STREAM_REQUEST: user={}, resource={}, ip={}", userId, resourceId, clientIp);
 
         try {
-            // Validate resource ID format
+            // Problem 1: Validate resource ID format
             if (!isValidResourceId(resourceId)) {
+                logger.error("PROBLEM_1_INVALID_RESOURCE_FORMAT: resourceId='{}' does not match pattern ^[a-zA-Z0-9_-]{{1,50}}$ or contains '..' - user={}, ip={}", 
+                    resourceId, userId, clientIp);
                 accessService.logUnauthorizedAccess(resourceId, clientIp, "invalid_resource_format");
                 return ResponseEntity.badRequest().build();
             }
 
-            // Check access permissions
+            // Problem 2: Check access permissions
             boolean hasAccess = accessService.checkAccess(userId, resourceId, clientIp);
             if (!hasAccess) {
+                logger.error("PROBLEM_2_ACCESS_DENIED: Main application denied access - user={}, resource={}, ip={}", 
+                    userId, resourceId, clientIp);
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(null);
             }
@@ -65,8 +69,10 @@ public class AudioController {
             Path audioFilePath = Paths.get("audio-files", sanitizedResourceId + ".mp3");
             File audioFile = audioFilePath.toFile();
 
+            // Problem 3: Check if file exists
             if (!audioFile.exists() || !audioFile.isFile()) {
-                logger.warn("Audio file not found: {}", audioFilePath);
+                logger.error("PROBLEM_3_FILE_NOT_FOUND: Audio file does not exist at path '{}' - user={}, resource={}, ip={}", 
+                    audioFilePath.toAbsolutePath(), userId, resourceId, clientIp);
                 return ResponseEntity.notFound().build();
             }
 
@@ -85,7 +91,8 @@ public class AudioController {
                     .body(fileResource);
 
         } catch (Exception e) {
-            logger.error("Error streaming audio file {} for user {}: {}", resourceId, userId, e.getMessage());
+            logger.error("PROBLEM_5_INTERNAL_ERROR: Unexpected error streaming audio file - user={}, resource={}, ip={}, error={}", 
+                userId, resourceId, clientIp, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
@@ -97,6 +104,11 @@ public class AudioController {
             Exception ex) {
         
         String clientIp = getClientIpAddress(request);
+        String userId = authentication != null ? authentication.getName() : "unknown";
+        
+        logger.error("PROBLEM_4_RATE_LIMIT_EXCEEDED: Audio access rate limit exceeded (5 req/s) - user={}, resource={}, ip={}, limit=audio-access", 
+            userId, resourceId, clientIp);
+        
         accessService.logUnauthorizedAccess(resourceId, clientIp, "rate_limit_exceeded");
         
         Map<String, String> error = new HashMap<>();

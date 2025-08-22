@@ -123,35 +123,58 @@ public class AccessService {
     private boolean checkAccessWithRetry(String userId, String resourceId, int attempt) {
         try {
             String url = mainAppUrl + "/api/internal/check-access?userId=" + userId + "&resourceId=" + resourceId;
+            logger.debug("ACCESS_CHECK_ATTEMPT: Checking access with main app - url={}, attempt={}", url, attempt + 1);
+            
             ResponseEntity<Boolean> response = restTemplate.getForEntity(url, Boolean.class);
             
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 boolean hasAccess = response.getBody();
-                logger.info("Access check for user {} and resource {}: {}", userId, resourceId, hasAccess);
+                logger.info("ACCESS_CHECK_SUCCESS: Main app response - user={}, resource={}, hasAccess={}, attempt={}", 
+                    userId, resourceId, hasAccess, attempt + 1);
                 
                 // Reset failure count on successful call
                 failureCount.set(0);
                 return hasAccess;
             } else {
-                logger.warn("Invalid response from main app for user {} and resource {}", userId, resourceId);
+                logger.error("PROBLEM_MAIN_APP_INVALID_RESPONSE: Invalid response from main app - user={}, resource={}, status={}, body={}, attempt={}", 
+                    userId, resourceId, response.getStatusCode(), response.getBody(), attempt + 1);
                 return false;
             }
+        } catch (java.net.ConnectException e) {
+            failureCount.incrementAndGet();
+            logger.error("PROBLEM_MAIN_APP_CONNECTION_REFUSED: Cannot connect to main app - user={}, resource={}, url={}, attempt={}, error={}", 
+                userId, resourceId, mainAppUrl, attempt + 1, e.getMessage());
+        } catch (java.net.SocketTimeoutException e) {
+            failureCount.incrementAndGet();
+            logger.error("PROBLEM_MAIN_APP_TIMEOUT: Main app request timeout - user={}, resource={}, timeout={}ms, attempt={}, error={}", 
+                userId, resourceId, timeout, attempt + 1, e.getMessage());
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            failureCount.incrementAndGet();
+            logger.error("PROBLEM_MAIN_APP_HTTP_ERROR: Main app HTTP error - user={}, resource={}, status={}, attempt={}, error={}", 
+                userId, resourceId, e.getStatusCode(), attempt + 1, e.getMessage());
         } catch (Exception e) {
             failureCount.incrementAndGet();
-            logger.error("Error checking access for user {} and resource {} (attempt {}): {}", 
-                    userId, resourceId, attempt + 1, e.getMessage());
-            
-            if (attempt < maxRetryAttempts - 1) {
-                try {
-                    Thread.sleep(1000 * (attempt + 1)); // Exponential backoff
-                    return checkAccessWithRetry(userId, resourceId, attempt + 1);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    return false;
-                }
-            }
-            return false;
+            logger.error("PROBLEM_MAIN_APP_UNKNOWN_ERROR: Unexpected error with main app - user={}, resource={}, attempt={}, error={}", 
+                userId, resourceId, attempt + 1, e.getMessage(), e);
         }
+        
+        if (attempt < maxRetryAttempts - 1) {
+            try {
+                long sleepTime = 1000 * (attempt + 1);
+                logger.info("ACCESS_CHECK_RETRY: Retrying after {}ms - user={}, resource={}, nextAttempt={}", 
+                    sleepTime, userId, resourceId, attempt + 2);
+                Thread.sleep(sleepTime); // Exponential backoff
+                return checkAccessWithRetry(userId, resourceId, attempt + 1);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                logger.error("ACCESS_CHECK_INTERRUPTED: Retry interrupted - user={}, resource={}", userId, resourceId);
+                return false;
+            }
+        }
+        
+        logger.error("ACCESS_CHECK_FINAL_FAILURE: All retry attempts exhausted - user={}, resource={}, totalAttempts={}", 
+            userId, resourceId, maxRetryAttempts);
+        return false;
     }
     
     public int getFailureCount() {

@@ -37,8 +37,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
         final String userId;
+        final String requestURI = request.getRequestURI();
+        final String clientIp = getClientIpAddress(request);
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            if (requestURI.startsWith("/api/") && !requestURI.startsWith("/api/auth/")) {
+                logger.warn("PROBLEM_JWT_MISSING_HEADER: No Authorization header for protected endpoint - uri={}, ip={}", 
+                    requestURI, clientIp);
+            }
             filterChain.doFilter(request, response);
             return;
         }
@@ -56,13 +62,38 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             new ArrayList<>()
                     );
                     SecurityContextHolder.getContext().setAuthentication(authToken);
-                    logger.debug("User {} authenticated successfully", userId);
+                    logger.debug("JWT_AUTH_SUCCESS: User {} authenticated successfully for {} from {}", userId, requestURI, clientIp);
+                } else {
+                    logger.error("PROBLEM_JWT_INVALID_TOKEN: Token validation failed - uri={}, ip={}, userId={}", 
+                        requestURI, clientIp, userId);
                 }
+            } else if (userId == null) {
+                logger.error("PROBLEM_JWT_NO_USERID: Cannot extract userId from JWT token - uri={}, ip={}", 
+                    requestURI, clientIp);
             }
         } catch (Exception e) {
-            logger.error("Cannot set user authentication: {}", e.getMessage());
+            logger.error("PROBLEM_JWT_PROCESSING_ERROR: Cannot process JWT token - uri={}, ip={}, error={}", 
+                requestURI, clientIp, e.getMessage(), e);
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private String getClientIpAddress(HttpServletRequest request) {
+        String[] headerNames = {
+            "X-Forwarded-For",
+            "X-Real-IP",
+            "Proxy-Client-IP",
+            "WL-Proxy-Client-IP"
+        };
+
+        for (String header : headerNames) {
+            String ip = request.getHeader(header);
+            if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
+                return ip.split(",")[0].trim();
+            }
+        }
+        
+        return request.getRemoteAddr();
     }
 }
