@@ -3,18 +3,17 @@ package com.replit;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
-import reactor.core.publisher.Mono;
 
 @RestController
 public class HealthController {
 
     @GetMapping("/health")
-    public Mono<String> health() {
-        return Mono.just("OK");
+    public String health() {
+        return "OK";
     }
     
     @GetMapping("/")
-    public Mono<String> root() {
-        return Mono.just("Application is running!");
+    public String root() {
+        return "Application is running!";
     }
 }
