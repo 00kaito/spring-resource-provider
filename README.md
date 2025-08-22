@@ -1,14 +1,60 @@
-# Template Name
+# Secure Audio Microservice
 
-spring-boot replit template.
+Spring Boot microservice that provides secure access to audio files using JWT authentication.
 
-__THIS IS NOT MULTI MODULE PROJECT!__
+## Usage
 
-# Usage
+1. Install and run the application
+2. Use the authentication endpoint to get a JWT token
+3. Access protected resources with the token
 
-Install and run.
+## Authentication
 
-# troubleshooter
+### Test Credentials
+- Username: `user`
+- Password: `password`
+
+### Login Endpoint
+```
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "username": "user",
+  "password": "password"
+}
+```
+
+Response:
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "type": "Bearer"
+}
+```
+
+## Protected Endpoints
+
+### Test Endpoint
+```
+GET /api/test
+Authorization: Bearer <your-jwt-token>
+```
+
+### Audio Streaming
+```
+GET /api/audio/stream/{resourceId}
+Authorization: Bearer <your-jwt-token>
+```
+
+## Configuration
+
+Set the JWT secret in environment variables:
+```
+JWT_SECRET=your-secret-key-here
+```
+
+## Troubleshooter
 
 1. env
 
