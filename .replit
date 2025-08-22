@@ -97,4 +97,17 @@ args = "mvn clean compile"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "mvn spring-boot:run"
+args = "mvn spring-boot:run -Dspring-boot.run.jvmArguments=\"-Dserver.port=8080\""
+
+[[workflows.workflow]]
+name = "Build and Run"
+author = 40837186
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "mvn clean package -Dmaven.test.skip=true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "java -jar target/*.jar"
