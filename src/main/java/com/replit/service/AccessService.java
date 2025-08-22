@@ -140,14 +140,18 @@ public class AccessService {
                     userId, resourceId, response.getStatusCode(), response.getBody(), attempt + 1);
                 return false;
             }
-        } catch (java.net.ConnectException e) {
+        } catch (org.springframework.web.client.ResourceAccessException e) {
             failureCount.incrementAndGet();
-            logger.error("PROBLEM_MAIN_APP_CONNECTION_REFUSED: Cannot connect to main app - user={}, resource={}, url={}, attempt={}, error={}", 
-                userId, resourceId, mainAppUrl, attempt + 1, e.getMessage());
-        } catch (java.net.SocketTimeoutException e) {
-            failureCount.incrementAndGet();
-            logger.error("PROBLEM_MAIN_APP_TIMEOUT: Main app request timeout - user={}, resource={}, timeout={}ms, attempt={}, error={}", 
-                userId, resourceId, timeout, attempt + 1, e.getMessage());
+            if (e.getCause() instanceof java.net.ConnectException) {
+                logger.error("PROBLEM_MAIN_APP_CONNECTION_REFUSED: Cannot connect to main app - user={}, resource={}, url={}, attempt={}, error={}", 
+                    userId, resourceId, mainAppUrl, attempt + 1, e.getMessage());
+            } else if (e.getCause() instanceof java.net.SocketTimeoutException) {
+                logger.error("PROBLEM_MAIN_APP_TIMEOUT: Main app request timeout - user={}, resource={}, timeout={}ms, attempt={}, error={}", 
+                    userId, resourceId, timeout, attempt + 1, e.getMessage());
+            } else {
+                logger.error("PROBLEM_MAIN_APP_NETWORK_ERROR: Network error - user={}, resource={}, attempt={}, error={}", 
+                    userId, resourceId, attempt + 1, e.getMessage());
+            }
         } catch (org.springframework.web.client.HttpClientErrorException e) {
             failureCount.incrementAndGet();
             logger.error("PROBLEM_MAIN_APP_HTTP_ERROR: Main app HTTP error - user={}, resource={}, status={}, attempt={}, error={}", 
