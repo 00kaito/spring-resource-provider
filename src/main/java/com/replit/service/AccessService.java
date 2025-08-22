@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import javax.annotation.PostConstruct;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -31,8 +32,16 @@ public class AccessService {
     private final AtomicInteger failureCount = new AtomicInteger(0);
     private static final int CIRCUIT_BREAKER_THRESHOLD = 5;
 
+    private RestTemplate restTemplate;
+    private final RestTemplateBuilder restTemplateBuilder;
+
     public AccessService(RestTemplateBuilder builder) {
-        this.restTemplate = builder
+        this.restTemplateBuilder = builder;
+    }
+
+    @PostConstruct
+    private void initializeRestTemplate() {
+        this.restTemplate = restTemplateBuilder
                 .setConnectTimeout(Duration.ofMillis(timeout))
                 .setReadTimeout(Duration.ofMillis(timeout))
                 .build();
