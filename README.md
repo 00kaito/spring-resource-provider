@@ -121,6 +121,116 @@ mvn spring-boot:run
 
 **Kliknij przycisk "Run"** - uruchomi workflow "Start Spring Boot"
 
+## Jak Działa Aplikacja
+
+### Przepływ Uwierzytelniania i Autoryzacji
+
+#### 1. Uruchomienie Aplikacji
+```bash
+mvn clean compile
+mvn spring-boot:run
+```
+Aplikacja startuje na porcie 8080 i przygotowuje wszystkie komponenty bezpieczeństwa.
+
+#### 2. Proces Uwierzytelniania (Testowy)
+
+**Żądanie tokena:**
+```bash
+curl -X POST http://0.0.0.0:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "user", "password": "password"}'
+```
+
+**Co się dzieje wewnętrznie:**
+1. `AuthController.login()` odbiera żądanie
+2. `AuthenticationManager` weryfikuje dane (user/password)
+3. `JwtService.generateToken()` tworzy JWT z:
+   - Subject: `user`
+   - Expiration: 24 godziny
+   - Algorytm: HS256
+4. Zwraca token: `{"token": "eyJ...", "type": "Bearer"}`
+
+#### 3. Dostęp do Chronionych Zasobów
+
+**Żądanie pliku audio:**
+```bash
+curl -X GET http://0.0.0.0:8080/api/audio/stream/sample123 \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+**Przepływ przetwarzania:**
+
+##### 3.1 Filtrowanie JWT (`JwtAuthenticationFilter`)
+1. **Przechwycenie żądania** - sprawdza header `Authorization`
+2. **Ekstraktowanie tokena** - usuwa prefiks "Bearer "
+3. **Walidacja tokena** - `JwtService.isTokenValid()`:
+   - Sprawdza ważność czasową
+   - Weryfikuje podpis cyfrowy
+   - Waliduje issuer/audience (jeśli skonfigurowane)
+4. **Ustawienie kontekstu** - tworzy `Authentication` z userId
+5. **SecurityContextHolder** - zapisuje uwierzytelnienie
+
+##### 3.2 Kontrola Dostępu (`AudioController`)
+1. **Pobranie userId** - z `SecurityContextHolder`
+2. **Sprawdzenie uprawnień** - `AccessService.checkAccess()`:
+   - Wysyła żądanie do głównej aplikacji: 
+     `GET /api/internal/check-access?userId=user&resourceId=sample123`
+   - **Circuit Breaker** - ochrona przed awariami (5 błędów = odmowa)
+   - **Retry** - 3 próby z exponential backoff
+   - **Timeout** - maksymalnie 5 sekund
+3. **Decyzja dostępu:**
+   - Brak dostępu → `403 Forbidden`
+   - Dostęp OK → przejście do streaming
+
+##### 3.3 Streaming Pliku
+1. **Lokalizacja pliku** - szuka `audio-files/sample123.mp3`
+2. **Sprawdzenie istnienia** - jeśli nie ma → `404 Not Found`
+3. **Streaming** - `FileSystemResource` z headerami:
+   - `Content-Type: application/octet-stream`
+   - `Content-Disposition: attachment; filename="sample123.mp3"`
+
+### Obsługa Błędów
+
+**Automatyczna obsługa przez `GlobalExceptionHandler`:**
+- **401 Unauthorized** - nieprawidłowy/wygasły JWT
+- **403 Forbidden** - brak uprawnień do zasobu
+- **404 Not Found** - plik nie istnieje
+- **500 Internal Server Error** - błąd podczas streamingu
+
+### Bezpieczeństwo
+
+**Poziomy zabezpieczeń:**
+1. **JWT Validation** - każdy token musi być ważny
+2. **External Authorization** - zewnętrzna aplikacja decyduje o dostępie
+3. **Circuit Breaker** - ochrona przed przeciążeniem
+4. **File System Protection** - dostęp tylko do dozwolonych katalogów
+
+**Endpointy publiczne (bez JWT):**
+- `/api/auth/**` - logowanie
+- `/health` - status aplikacji
+- `/` - główna strona
+
+**Endpointy chronione (wymagają JWT):**
+- `/api/audio/**` - streaming audio
+- `/api/admin/**` - administracja
+- `/api/test` - endpoint testowy
+
+### Komunikacja z Główną Aplikacją
+
+`AccessService` implementuje wzorzec **Resource Server**:
+- **Nie przechowuje uprawnień** - każdy dostęp sprawdza zewnętrznie
+- **Resilience patterns** - circuit breaker, retry, timeout
+- **Detailed logging** - wszystkie operacje logowane
+
+**Schemat decyzji:**
+```
+Token JWT → Walidacja → Główna aplikacja → Decyzja → Zasób
+    ↓           ↓              ↓            ↓        ↓
+  Invalid    Valid         Forbidden     Allow    Stream
+    ↓           ↓              ↓            ↓        ↓
+   401         OK            403          200     File
+```
+
 ## Testowanie JWT
 
 ### 1. Pobieranie tokena
